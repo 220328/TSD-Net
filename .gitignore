@@ -1,0 +1,67 @@
+# Python缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# 模型权重 & 预训练权重
+*.pth
+*.pt
+*.ckpt
+training/ckpt_save/
+data/pretrain/*.pth
+
+# 数据集
+dataset/
+discrepancy/
+
+# 推理输出、可视化结果
+results/
+tsne_no_center/
+tsne_results/
+
+# 编辑器本地文件
+.qoder/
+.vscode/
+.idea/
+
+# 压缩包
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.gz
+*.bz2
+*.xz
+
+# 不想提交的脚本
+overlay_gt_on_response.py
+PR_Curve.py
+visualize_discrepancy.py
+visualize_multiview_response.py
+select_multiview_diff_topk.py
+select_top10_visualization.py
+methods/DCT2.py
+methods/DCTNet_clean_for_complexity.py
+methods/DCTNet_discrepancy.py
+methods/DCTNet_multview.py
+methods/DCTNetv2.py
+methods/DCTNetv3.py
+train_v2.py
+train_v3.py
+class_eval.py
+methods/CFM.py
+methods/GatedConv.py
+methods/HDPNet_model.py
+methods/HourglassPvt2_Base.py
+methods/MFFN.py
+methods/MSAModule.py
+methods/Modules.py
+methods/Network.py
+methods/PVTv1.py
+methods/SINet.py
+methods/SINet_v2_Res2Net_GRA_NCD.py
+methods/SearchAttention.py
+methods/pvt_v2_eff.py
+methods/zoomnet.py

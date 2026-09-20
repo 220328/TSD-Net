@@ -1,0 +1,12 @@
+torch
+scipy
+torchvision
+opencv-python
+numpy
+pandas
+tensorly
+albumentations
+tqdm
+openpyxl
+timm
+imageio
