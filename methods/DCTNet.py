@@ -184,17 +184,11 @@ class EfficientFreqFusion(nn.Module):
     """
     高效频域融合模块
     """
-
     def __init__(self, in_dim, mm_size):
         super().__init__()
-
         self.dct_layer = DCTLayer()
-
         self.spectral_attention = SpectralAttention(in_dim)
-
-        # 保存可视化数据
-        self.visual_data = {}
-
+        
         # 频域特征增强
         self.freq_enhance = nn.Sequential(
             nn.Conv2d(in_dim, in_dim, 3, padding=1),
@@ -203,223 +197,52 @@ class EfficientFreqFusion(nn.Module):
             nn.Conv2d(in_dim, in_dim, 1),
             nn.BatchNorm2d(in_dim)
         )
-
+        
         # 差异提取和融合
         self.diff_fusion = nn.Sequential(
-            nn.Conv2d(in_dim * 2, in_dim, 3, padding=1),
+            nn.Conv2d(in_dim*2, in_dim, 3, padding=1),
             nn.BatchNorm2d(in_dim),
             nn.ReLU(inplace=True)
         )
-
-        # 输出调整
+        
+        # 最终输出调整
         self.output_adjust = nn.Sequential(
             nn.Conv2d(in_dim, in_dim, 3, padding=1),
             nn.BatchNorm2d(in_dim),
             nn.ReLU(inplace=True)
         )
 
-
     def forward(self, o, a1, a2):
-
-        # ===========================
-        # DCT transform
-        # ===========================
-
+        # DCT变换
         o_freq = self.dct_layer(o)
-
         a1_freq = self.dct_layer(a1)
-
         a2_freq = self.dct_layer(a2)
-
-
-
-        # =====================================================
-        # 保存原始DCT频域信息
-        # =====================================================
-
-        before_dct = o_freq.clone()
-
-
-        # 用于频谱显示
-        before_freq = torch.abs(before_dct)
-
-        before_freq_vis = before_freq.clone()
-
-        # 去除DC分量，仅用于显示
-        before_freq_vis[:, :, 0, 0] = 0
-
-
-
-        # =====================================================
-        # Spectral Attention
-        # =====================================================
-
-        with torch.no_grad():
-
-            avg_out = self.spectral_attention.global_avg_pool(
-                o_freq
-            )
-
-            max_out = self.spectral_attention.global_max_pool(
-                o_freq
-            )
-
-
-            attn_weight = (
-                self.spectral_attention.mlp(avg_out)
-                +
-                self.spectral_attention.mlp(max_out)
-            )
-
-
-            attn_weight = torch.sigmoid(
-                attn_weight
-            )
-
-
-
-        # =====================================================
-        # 频域增强
-        # =====================================================
-
-        o_attn = self.spectral_attention(
-            o_freq
-        )
-
-
-        after_dct = o_attn.clone()
-
-
-        after_freq = torch.abs(after_dct)
-
-
-        after_freq_vis = after_freq.clone()
-
-        after_freq_vis[:, :, 0, 0] = 0
-
-
-
-        # =====================================================
-        # IDCT: 频域 -> 空间域
-        # =====================================================
-
-        before_spatial = dct.idct_2d(
-            before_dct,
-            norm='ortho'
-        )
-
-
-        after_spatial = dct.idct_2d(
-            after_dct,
-            norm='ortho'
-        )
-
-
-        diff_spatial = after_spatial - before_spatial
-
-
-
-        # =====================================================
-        # 保存可视化结果
-        # =====================================================
-
-        self.visual_data = {
-
-            # 频域
-            "before_freq":
-                before_freq_vis.detach(),
-
-            "after_freq":
-                after_freq_vis.detach(),
-
-            "diff_freq":
-                torch.abs(after_freq - before_freq).detach(),
-
-
-            # 空间域
-            "before_spatial":
-                before_spatial.detach(),
-
-            "after_spatial":
-                after_spatial.detach(),
-
-            "diff_spatial":
-                torch.abs(diff_spatial).detach(),
-
-
-            # 注意力权重
-            "weight":
-                attn_weight.detach()
-        }
-
-
-
-        # =====================================================
-        # 其它尺度频域增强
-        # =====================================================
-
-        a1_attn = self.spectral_attention(
-            a1_freq
-        )
-
-
-        a2_attn= self.spectral_attention(
-            a2_freq
-        )
-
-
-        o_enhanced = self.freq_enhance(
-            o_attn
-        )
-
-
-        a1_enhanced = self.freq_enhance(
-            a1_attn
-        )
-
-
-        a2_enhanced = self.freq_enhance(
-            a2_attn
-        )
-
-
-
-        # =====================================================
-        # 多视角差异融合
-        # =====================================================
-
-        diff1 = torch.abs(
-            o_enhanced - a1_enhanced
-        )
-
-
-        diff2 = torch.abs(
-            o_enhanced - a2_enhanced
-        )
-
-
-        diff_fused = self.diff_fusion(
-            torch.cat(
-                [
-                    diff1,
-                    diff2
-                ],
-                dim=1
-            )
-        )
-
-
-
-        # =====================================================
-        # 输出
-        # =====================================================
-
-        output = self.output_adjust(
-            o_enhanced + diff_fused
-        )
-
-
-        return output   
+        
+        # 应用频谱注意力
+        o_attn = self.spectral_attention(o_freq)
+        a1_attn = self.spectral_attention(a1_freq)
+        a2_attn = self.spectral_attention(a2_freq)
+        
+        # 增强频域特征
+        o_enhanced = self.freq_enhance(o_attn)
+        a1_enhanced = self.freq_enhance(a1_attn)
+        a2_enhanced = self.freq_enhance(a2_attn)
+        
+        # 计算跨视角差异
+        diff1 = torch.abs(o_enhanced - a1_enhanced) #垂直
+        diff2 = torch.abs(o_enhanced - a2_enhanced) #水平
+        
+        # 融合差异信息 
+        diff_fused = self.diff_fusion(torch.cat([diff1,diff2],dim=1)) # 
+        
+        # 最终输出：原始增强特征 + 差异信息
+        output = self.output_adjust(o_enhanced + diff_fused)
+
+        # # Ablation concat 三视角信息cat
+        # diff_fused = self.diff_fusion(torch.cat([o_enhanced,a1_enhanced,a2_enhanced],dim=1))
+        # output = self.output_adjust(diff_fused)
+        
+        return output
 
 ############### 多视角生成 ###############
 
@@ -864,10 +687,6 @@ class DCTNet(BasicModelClass):
         dct_feats_list = []
         for i, o_f, a1_f, a2_f in zip(iterate, o_feats, a1_feats, a2_feats):
             dct_temp = self.EFF_Layers[i](o_f, a1_f, a2_f)
-           
-            if i == 1 and not self.training:
-                self.visual_data = self.EFF_Layers[i].visual_data
-
             dct_feats_list.append(dct_temp) # 5* (batchsize, 64, , ) 浅到深
         
         # aligned_a1_feats = []

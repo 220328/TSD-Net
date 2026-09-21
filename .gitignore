@@ -65,3 +65,5 @@ methods/SINet_v2_Res2Net_GRA_NCD.py
 methods/SearchAttention.py
 methods/pvt_v2_eff.py
 methods/zoomnet.py
+methods/DCTNet_visual.py
+methods/previous
